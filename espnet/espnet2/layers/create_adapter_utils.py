@@ -1,0 +1,47 @@
+from typing import List
+
+import torch
+from typeguard import check_argument_types
+
+
+def replace_module(
+    parent_module: torch.nn.Module,
+    child_name: str,
+    old_module: torch.nn.Module,
+    new_module: torch.nn.Module,
+    copy_weight: bool = True
+):
+    """Replace the target module with the new module."""
+    assert check_argument_types()
+    # TODO add hook and whether requires_grad to them
+    device = old_module.weight.device
+    setattr(parent_module, child_name, new_module)
+
+    if copy_weight:
+        # copy weight and bias from the target module
+        new_module.weight.data = old_module.weight.data
+        if hasattr(old_module, "bias") and old_module.bias is not None:
+            new_module.bias.data = old_module.bias.data
+
+    # move the new_module to the same device as the old_module
+    new_module.to(device)
+
+def check_target_module_exists(key: str, target_modules: List[str]):
+    """Check if the target_modules matchs the given key."""
+    assert check_argument_types()
+    return any([key.endswith(target_key) for target_key in target_modules])
+
+def get_submodules(model: torch.nn.Module, key: str):
+    """Return the submodules of the given key."""
+    assert check_argument_types()
+    parent_module = model.get_submodule(".".join(key.split(".")[:-1]))
+    target_name = key.split(".")[-1]
+    target_module = model.get_submodule(key)
+    return parent_module, target_name, target_module
+
+def get_target_key(key: str, target_modules: List[str]):
+    assert check_argument_types()
+    for target_key in target_modules:
+        if key.endswith(target_key):
+            return target_key
+    raise KeyError(f"The key {key} was not found in the target_modules")
